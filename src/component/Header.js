@@ -1,14 +1,41 @@
-import React from "react";
-import { useDispatch } from "react-redux";
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { toggleMenu } from "../utils/appSlice";
+import { YOUTUBE_SEARCH_API } from "../utils/config";
+import { cacheResults } from "../utils/searchSlice";
 
 const Header = () => {
+  const searchCache = useSelector((store) => store.search);
+  const [showSearch, setShowSearch] = useState(false);
+  const [search, setSearch] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const dispatch = useDispatch();
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchCache[searchQuery]) setSearch([searchCache[searchQuery]]);
+      else {
+        getSearchSuggestions();
+      }
+    }, 200);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchQuery]);
+  const getSearchSuggestions = async () => {
+    const data = await fetch(YOUTUBE_SEARCH_API + searchQuery);
+    const json = await data.json();
+
+    setSearch(json[1]);
+
+    dispatch(cacheResults({ [searchQuery]: json[1] }));
+  };
+
   const toggleMenuHandler = () => {
     dispatch(toggleMenu());
   };
   return (
-    <div className="grid grid-flow-col p-2  shadow-lg">
+    <div className="grid grid-flow-col  bg-white p-2  shadow-lg">
       <div className="flex col-span-1 py-2 ">
         <img
           onClick={() => toggleMenuHandler()}
@@ -24,12 +51,27 @@ const Header = () => {
       </div>
       <div className="col-span-10 px-10 py-2">
         <input
-          className="w-1/2 border border-gray-400 p-1 rounded-l-full"
+          className="w-1/2 border border-gray-400 px-5 py-1 rounded-l-full"
           type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => setShowSearch(true)}
+          onBlur={() => setShowSearch(false)}
         />
         <button className="border border-gray-400 p-1 rounded-r-full">
           Search
         </button>
+        {showSearch && (
+          <div className="fixed px-5 py-2 bg-white rounded-md shadow-lg w-[29.8rem] border border-gray-100 ">
+            <ul>
+              {search.map((list, index) => (
+                <li key={index} className="py-2 shadow-sm hover:bg-gray-100">
+                  {list}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
       <div className="col-span-1 py-2">
         <img
